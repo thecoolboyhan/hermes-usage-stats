@@ -1,0 +1,6 @@
+{
+  "name": "usage-stats",
+  "version": "1.0.0",
+  "description": "Hermes 用量统计",
+  "main": "plugin.js"
+}

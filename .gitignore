@@ -1,0 +1,21 @@
+# 运行产物（禁止 push）
+daemon.log
+daemon.pid
+daemon.json
+stderr.log
+stdout.log
+install.log
+
+# macOS 系统文件
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo

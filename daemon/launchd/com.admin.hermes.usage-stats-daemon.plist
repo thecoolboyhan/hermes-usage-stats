@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.admin.hermes.usage-stats-daemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/admin/.hermes/plugins/usage-stats/daemon.py</string>
+    </array>
+
+    <!-- 一直跑 -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- 自动重启：崩溃/被 kill 后 -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <!-- ThrottleInterval: 10s 内最多重启一次 -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- 日志（launchd 会写） -->
+    <key>StandardOutPath</key>
+    <string>/Users/admin/.hermes/plugins/usage-stats/launchd/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/admin/.hermes/plugins/usage-stats/launchd/stderr.log</string>
+
+    <!-- 进程类型 -->
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
