@@ -75,7 +75,11 @@ function formatDate(ts) {
   return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
 
-var MODEL_COLOR_POOL = ['#4CAF50', '#9C27B0', '#FF9800', '#F44336']
+var MODEL_COLOR_POOL = [
+  '#4CAF50', '#9C27B0', '#FF9800', '#F44336',  // 原有 4 色
+  '#2196F3', '#00BCD4', '#FF5722', '#795548',  // 蓝、青、深橙、棕
+  '#3F51B5', '#E91E63', '#009688', '#FFC107'   // 靛、粉、青绿、黄
+]
 
 async function fetchDaemonJSON(path) {
   for (var p = 18721; p <= 18999; p++) {
