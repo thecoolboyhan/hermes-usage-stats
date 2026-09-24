@@ -23,8 +23,27 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 
 SCHEMA_VERSION = 2
-STATE_DB = os.path.expanduser("~/.hermes/state.db")
-CONFIG_DIR = os.path.expanduser("~/.hermes/plugins/usage-stats")
+
+
+def _get_hermes_home():
+    """自动检测 Hermes home 目录，支持全平台。
+
+    优先级：
+    1. HERMES_HOME 环境变量（用户可自定义）
+    2. Windows: %LOCALAPPDATA%\\hermes
+    3. macOS / Linux: ~/.hermes
+    """
+    explicit = os.environ.get("HERMES_HOME", "").strip()
+    if explicit:
+        return explicit
+    if sys.platform == "win32":
+        return os.path.join(os.environ.get("LOCALAPPDATA", ""), "hermes")
+    return os.path.expanduser("~/.hermes")
+
+
+HERMES_HOME = _get_hermes_home()
+STATE_DB = os.path.join(HERMES_HOME, "state.db")
+CONFIG_DIR = os.path.join(HERMES_HOME, "plugins", "usage-stats")
 PORT_FILE = os.path.join(CONFIG_DIR, "daemon.json")
 PID_FILE = os.path.join(CONFIG_DIR, "daemon.pid")
 LOG_FILE = os.path.join(CONFIG_DIR, "daemon.log")

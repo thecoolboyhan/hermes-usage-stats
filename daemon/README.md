@@ -1,139 +1,107 @@
-# 用量统计 Daemon
+# Hermes Usage Stats — Daemon
 
-> **AGENTS 提示**：用量面板的**数据源**。Hermes 更新不会影响这里，但需要运维。
+> 用量统计数据服务。全平台支持（macOS / Linux / Windows），零第三方依赖。
 
 ## 这是什么
 
-独立 Python 进程，对外暴露 HTTP 接口 `/health` 和 `/insights?days=N`，
-供 `~/.hermes/desktop-plugins/usage-stats/plugin.js` 调用。
+独立 Python 进程，读取 `~/.hermes/state.db`，对外暴露 HTTP 接口：
 
-**设计目标**：让"用量面板"按钮**不依赖** Hermes 升级 / gateway 状态 / `host.request`。
-哪怕 `~/.hermes/hermes-agent/` 整个目录被重写，daemon 仍能工作。
-
-## 文件清单
-
-| 路径 | 用途 |
+| 端点 | 说明 |
 |---|---|
-| `daemon.py` | 主程序。stdlib only（`sqlite3` + `http.server`），零第三方依赖 |
-| `daemon.json` | 运行时状态：`{pid, port, schema_version, started_at}`，供 plugin 读端口 |
-| `daemon.pid` | 当前 PID（启动时写，停时删） |
-| `daemon.log` | 业务日志（HTTP 访问、查询耗时） |
-| `manage.sh` | 安装/卸载/状态/重启 launchd 任务 |
-| `launchd/com.admin.hermes.usage-stats-daemon.plist` | launchd 配置 |
+| `GET /health` | 健康检查，返回 `{"ok": true, "schema_version": N}` |
+| `GET /insights` | 返回用量数据（默认 14 天） |
+| `GET /insights?days=7` | 最近 7 天 |
+| `GET /insights?days=30` | 最近 30 天 |
 
-## 安装 & 运维
+## 平台支持
 
-```bash
-# 安装（首次，或重装）
-bash ~/.hermes/plugins/usage-stats/manage.sh install
-
-# 卸载（保留数据，停止 launchd）
-bash ~/.hermes/plugins/usage-stats/manage.sh uninstall
-
-# 查看状态（PID / 端口 / 健康）
-bash ~/.hermes/plugins/usage-stats/manage.sh status
-
-# 重启（不会丢 launchd 注册）
-bash ~/.hermes/plugins/usage-stats/manage.sh restart
-```
-
-## HTTP 接口
-
-| 路径 | 方法 | 说明 |
+| 平台 | 进程管理 | 说明 |
 |---|---|---|
-| `/health` | GET | 健康检查，返回 `{ok, schema_version}` |
-| `/insights?days=N` | GET | 主数据接口，`N` ∈ {7,14,30,90} |
-| `/ready` | GET | readiness probe（launchd 用） |
+| **macOS** | `launchd` (user-level plist) | 重启后自动拉起 |
+| **Linux** | `systemd --user` | 同上，需先运行 `systemctl --user enable --now hermes-usage-stats` |
+| **Windows** | 后台进程（无等效 daemon） | `nohup python3 daemon.py` 后台运行 |
 
-### 返回结构（`/insights`）
-
-```json
-{
-  "schema_version": 2,
-  "generated_at": 1758672000,
-  "overview": {
-    "total_sessions": 261,
-    "total_messages": 3643,
-    "total_tool_calls": 5432,
-    "total_tokens": 18508367,
-    "total_input_tokens": 14800000,
-    "total_output_tokens": 3708367,
-    "total_cache_read_tokens": 0,
-    "total_hours": 12.5,
-    "avg_session_duration": 1800,
-    "date_range_start": 1758067200,
-    "date_range_end": 1758672000
-  },
-  "models": [{"model": "laguna-xs-2.1:free", "sessions": 50, "total_tokens": 1.2e7, ...}],
-  "platforms": [{"platform": "nous", "sessions": 200, "total_tokens": 1.5e7}],
-  "tools": [{"tool": "terminal", "count": 10487, "percentage": 65.2}, ...],
-  "skills": {"summary": {...}, "top": [...]},
-  "activity": {"active_days": 7, "max_streak": 7, "by_hour": [0,0,0,...24 hours]},
-  "daily_usage": [{"date": "2026-09-18", "date_label": "09/18", "models": {...}}, ...]
-}
-```
-
-## 数据源
-
-- 直读 `~/.hermes/state.db`（SQLite）
-- 三个核心表：`sessions`, `messages`, `session_model_usage`
-- `tool_calls` 是 JSON 字符串字段——daemon 解析 `function.name`
-- **不导入**任何 `~/.hermes/hermes-agent/` 下的代码（已 lsof 验证）
-
-## 常见问题排查
-
-### 1) daemon 没起来
+## 快速启动（不安装为服务）
 
 ```bash
-bash ~/.hermes/plugins/usage-stats/manage.sh status
-# 显示 "launchd task not loaded" → 重新 install
-# 显示 "daemon not running" 但 plist loaded → launchd 没拉起，看日志
+python3 daemon.py
+# 后台运行:
+nohup python3 daemon.py >> daemon.log 2>&1 &
 ```
 
-**日志位置**：
-- `~/.hermes/plugins/usage-stats/launchd/stdout.log`
-- `~/.hermes/plugins/usage-stats/launchd/stderr.log`
+启动后端口动态分配，写入 `daemon.json`。默认端口范围：`18721–18999`。
+
+## 手动安装为服务
+
+### macOS
 
 ```bash
-tail -50 ~/.hermes/plugins/usage-stats/launchd/stderr.log
+bash manage.sh install
 ```
 
-### 2) 端口被占
-
-daemon 启动时随机选 18721-18999，写入 `daemon.json`。如果手测时占用了：
-```bash
-# 找占用进程
-lsof -nP -iTCP:18721-18999 -sTCP:LISTEN
-```
-
-### 3) 数据不对
-
-daemon 不缓存结果，每次查询实时 SQL。如果 `state.db` 损坏：
-```bash
-sqlite3 ~/.hermes/state.db "PRAGMA integrity_check"
-```
-
-### 4) Hermes 升级后出问题
-
-**daemon 不依赖 hermes-agent，应该不受影响。** 如果出问题：
+### Linux (systemd)
 
 ```bash
-# 1) 确认 daemon 还活着
-curl http://127.0.0.1:<port>/health
-# 2) 确认 launchd 任务还加载
-launchctl list | grep usage-stats
-# 3) 重启 daemon
-bash ~/.hermes/plugins/usage-stats/manage.sh restart
+bash manage.sh install
+# 或手动:
+mkdir -p ~/.config/systemd/user/
+# manage.sh install 会自动生成 ~/.config/systemd/user/hermes-usage-stats.service
+systemctl --user enable --now hermes-usage-stats
 ```
 
-## 升级 daemon.py
+### Windows
 
-1. 编辑 `daemon.py`
-2. **如果改了 HTTP 接口或 schema**：同步更新 `~/.hermes/desktop-plugins/usage-stats/plugin.js` 的 `fetchDaemonJSON` 和 UI 字段映射
-3. **如果只是修 bug / 优化查询**：直接 restart
-4. **如果改了 schema_version**：必须同步改 plugin.js 里的兼容判断（当前 plugin 假设 `schema_version: 2`，字段缺失就 fallback）
+```powershell
+# PowerShell 后台启动
+Start-Process -FilePath "python" -ArgumentList "daemon.py" -NoNewWindow -WindowStyle Hidden
+```
 
-## 历史
+## 运维命令
 
-- **2026-09-24**：v1 上线，替换 v4（gateway RPC + `_heal_insights.py` 补丁方案）
-- 取代了"每次 Hermes 升级按钮就坏"的问题
+```bash
+bash manage.sh status   # 查看 daemon 状态 + /health
+bash manage.sh restart  # 重启 daemon
+bash manage.sh logs     # 看 daemon.log
+bash manage.sh uninstall # 停止 + 清理
+```
+
+## 数据来源
+
+直接读取 Hermes 的 `state.db`（SQLite），不依赖 hermes-agent 代码：
+
+```sql
+-- 表: session_model_usage
+-- 字段: session_id, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens
+```
+
+**设计原则**：daemon 与 hermes-agent **零耦合**（lsof 验证），Hermes 升级不影响用量统计。
+
+## 故障排除
+
+**症状：状态栏按钮点不开 / 数据停留在"加载中"**
+
+1. `bash manage.sh status` — 查看 daemon 是否在运行、/health 是否正常
+2. `bash manage.sh logs` — 查看 daemon 日志
+3. `curl http://127.0.0.1:<端口>/health` — 手动验证
+4. `bash manage.sh restart` — 重启 daemon
+
+**症状：daemon 运行但 /health 无响应**
+
+- 端口可能变了（动态分配）。`bash manage.sh status` 查看当前端口
+
+**症状：Hermes 升级后数据不更新**
+
+- 检查 `~/.hermes/state.db` 是否存在
+- 检查 `curl http://127.0.0.1:<端口>/insights` 是否返回最新数据
+- daemon 直读 db，不受 hermes-agent 升级影响
+
+## 环境变量
+
+| 变量 | 说明 | 默认值 |
+|---|---|---|
+| `HERMES_HOME` | Hermes 数据目录 | `~/.hermes`（macOS/Linux）、`%LOCALAPPDATA%\hermes`（Windows） |
+
+```bash
+# 自定义 Hermes 目录
+HERMES_HOME=/opt/hermes python3 daemon.py
+```
