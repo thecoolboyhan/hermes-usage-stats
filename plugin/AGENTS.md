@@ -113,7 +113,7 @@ plugin.js 里有 `ov.total_sessions` 等字段访问。新增字段直接加即�
 ### 改了 UI
 
 - **新增区块**：在 `UsagePane` 的 `hasData && jsxs(...)` 里加一个 `<XxxSection />`
-- **改配色**：编辑顶部的 `MODEL_COLOR_POOL = ['#4CAF50', '#9C27B0', '#FF9800', '#F44336']`
+- **改配色**：编辑顶部的 `MODEL_COLOR_POOL`（当前 12 色：绿/紫/橙/红/蓝/青/深橙/棕/靛/粉/青绿/黄）
 - **改默认 days**：编辑 `useState(7)` → `useState(14)`
 
 ### 添加语言

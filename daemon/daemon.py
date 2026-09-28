@@ -37,7 +37,12 @@ def _get_hermes_home():
     if explicit:
         return explicit
     if sys.platform == "win32":
-        return os.path.join(os.environ.get("LOCALAPPDATA", ""), "hermes")
+        # 与 Hermes 本体/迁移约定对齐：优先 %USERPROFILE%\.hermes，
+        # 找不到再退回老版本位置 %LOCALAPPDATA%\hermes
+        home = os.path.join(os.path.expanduser("~"), ".hermes")
+        if not os.path.isdir(home):
+            home = os.path.join(os.environ.get("LOCALAPPDATA", ""), "hermes")
+        return home
     return os.path.expanduser("~/.hermes")
 
 
@@ -89,7 +94,7 @@ def _parse_json_list(raw):
 def _log(msg):
     line = f"[{datetime.now().isoformat()}] {msg}"
     try:
-        with open(LOG_FILE, "a") as f:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception:
         pass
@@ -385,7 +390,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if u.path == "/insights":
             q = parse_qs(u.query)
-            days = int((q.get("days") or ["7"])[0])
+            try:
+                days = int((q.get("days") or ["7"])[0])
+            except (ValueError, TypeError):
+                days = 7
             try:
                 report = build_report(days)
                 self._json(200, report)

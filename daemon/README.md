@@ -19,7 +19,7 @@
 |---|---|---|
 | **macOS** | `launchd` (user-level plist) | 重启后自动拉起 |
 | **Linux** | `systemd --user` | 同上，需先运行 `systemctl --user enable --now hermes-usage-stats` |
-| **Windows** | 后台进程（无等效 daemon） | `nohup python3 daemon.py` 后台运行 |
+| **Windows** | 任务计划程序 (ONLOGON) | `bash manage.sh install` 注册登录自启（pythonw 静默） |
 
 ## 快速启动（不安装为服务）
 
@@ -51,10 +51,16 @@ systemctl --user enable --now hermes-usage-stats
 
 ### Windows
 
-```powershell
-# PowerShell 后台启动
+```bash
+# Git Bash 中执行（推荐，自动注册任务计划自启）
+bash manage.sh install
+
+# 或手动（PowerShell 后台启动，无自启）
 Start-Process -FilePath "python" -ArgumentList "daemon.py" -NoNewWindow -WindowStyle Hidden
 ```
+
+> `manage.sh install` 在 Windows 上会注册 `HermesUsageStatsDaemon` 计划任务（ONLOGON，pythonw 静默运行），
+> 登录后自动拉起；卸载用 `bash manage.sh uninstall`。
 
 ## 运维命令
 
@@ -99,7 +105,7 @@ bash manage.sh uninstall # 停止 + 清理
 
 | 变量 | 说明 | 默认值 |
 |---|---|---|
-| `HERMES_HOME` | Hermes 数据目录 | `~/.hermes`（macOS/Linux）、`%LOCALAPPDATA%\hermes`（Windows） |
+| `HERMES_HOME` | Hermes 数据目录 | `~/.hermes`（macOS/Linux）、`%USERPROFILE%\.hermes`（Windows，不存在时退回 `%LOCALAPPDATA%\hermes`） |
 
 ```bash
 # 自定义 Hermes 目录
