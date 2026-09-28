@@ -56,7 +56,7 @@
 
 - **Hermes Desktop** v0.15+（[安装指南](https://github.com/NousResearch/hermes-agent)）
 - Python 3.8+（macOS / Linux 自带）
-- Windows: 需要 Python 3.8+（[python.org](https://python.org)）
+- Windows: 需要 Python 3.8+（[python.org](https://python.org)，安装时勾选 *Add python.exe to PATH*）+ [Git for Windows](https://git-scm.com/download/win)（安装脚本依赖 Git Bash）
 
 ### 一键安装
 
@@ -66,11 +66,8 @@ cd hermes-usage-stats
 bash install.sh
 ```
 
-Windows（PowerShell）:
-
-```powershell
-.\install.ps1
-```
+> Windows 用户：请在 **Git Bash** 中执行上述命令（不要用 cmd / PowerShell，没有 `bash`）。
+> 脚本会同时注册任务计划 `HermesUsageStatsDaemon`，登录后自动拉起 daemon。
 
 重启 Hermes Desktop，按 `⌘K`（macOS）/ `Ctrl+K`（Windows/Linux）→ Reload。
 
@@ -82,7 +79,7 @@ Windows（PowerShell）:
 |---|---|---|
 | macOS 12+ | `launchd`（自动重启） | ✅ |
 | Linux | `systemd --user`（自动重启） | ✅ |
-| Windows 10/11 | 后台进程（手动重启） | ✅ |
+| Windows 10/11 | 任务计划程序（登录自启，pythonw 静默） | ✅ |
 
 详细安装说明见 [daemon README](daemon/README.md)。
 
